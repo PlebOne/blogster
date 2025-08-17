@@ -1,4 +1,234 @@
 use egui::{Color32, Visuals};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Theme {
+    CatppuccinMocha,
+    CatppuccinLatte,
+    GruvboxDark,
+    GruvboxLight,
+    DraculaDark,
+    SolarizedDark,
+    SolarizedLight,
+    TokyoNight,
+    OneDark,
+    MaterialDark,
+}
+
+// Universal color scheme that works across all themes
+#[derive(Debug, Clone)]
+pub struct ThemeColors {
+    pub primary: Color32,      // Main accent color
+    pub secondary: Color32,    // Secondary accent color  
+    pub success: Color32,      // Green for success states
+    pub warning: Color32,      // Yellow/orange for warnings
+    pub error: Color32,        // Red for errors
+    pub info: Color32,         // Blue for info
+    pub text: Color32,         // Primary text color
+    pub text_secondary: Color32, // Secondary text color
+    pub text_muted: Color32,   // Muted/disabled text
+    pub background: Color32,   // Main background
+    pub surface: Color32,      // Surface/panel background
+    pub border: Color32,       // Border color
+}
+
+impl Default for Theme {
+    fn default() -> Self {
+        Theme::CatppuccinMocha
+    }
+}
+
+impl Theme {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Theme::CatppuccinMocha => "Catppuccin Mocha",
+            Theme::CatppuccinLatte => "Catppuccin Latte",
+            Theme::GruvboxDark => "Gruvbox Dark",
+            Theme::GruvboxLight => "Gruvbox Light",
+            Theme::DraculaDark => "Dracula",
+            Theme::SolarizedDark => "Solarized Dark",
+            Theme::SolarizedLight => "Solarized Light",
+            Theme::TokyoNight => "Tokyo Night",
+            Theme::OneDark => "One Dark",
+            Theme::MaterialDark => "Material Dark",
+        }
+    }
+
+    pub fn colors(&self) -> ThemeColors {
+        match self {
+            Theme::CatppuccinMocha => ThemeColors {
+                primary: Color32::from_rgb(137, 180, 250),      // Blue
+                secondary: Color32::from_rgb(203, 166, 247),    // Mauve
+                success: Color32::from_rgb(166, 227, 161),      // Green
+                warning: Color32::from_rgb(249, 226, 175),      // Yellow
+                error: Color32::from_rgb(243, 139, 168),        // Red
+                info: Color32::from_rgb(137, 220, 235),         // Sky
+                text: Color32::from_rgb(205, 214, 244),         // Text
+                text_secondary: Color32::from_rgb(186, 194, 222), // Subtext1
+                text_muted: Color32::from_rgb(166, 173, 200),   // Subtext0
+                background: Color32::from_rgb(30, 30, 46),      // Base
+                surface: Color32::from_rgb(49, 50, 68),         // Surface0
+                border: Color32::from_rgb(108, 112, 134),       // Overlay0
+            },
+            Theme::CatppuccinLatte => ThemeColors {
+                primary: Color32::from_rgb(30, 102, 245),       // Blue
+                secondary: Color32::from_rgb(136, 57, 239),     // Mauve
+                success: Color32::from_rgb(64, 160, 43),        // Green
+                warning: Color32::from_rgb(223, 142, 29),       // Yellow
+                error: Color32::from_rgb(210, 15, 57),          // Red
+                info: Color32::from_rgb(4, 165, 229),           // Sky
+                text: Color32::from_rgb(76, 79, 105),           // Text
+                text_secondary: Color32::from_rgb(108, 111, 133), // Subtext1
+                text_muted: Color32::from_rgb(140, 143, 161),   // Subtext0
+                background: Color32::from_rgb(239, 241, 245),   // Base
+                surface: Color32::from_rgb(220, 224, 232),      // Surface0
+                border: Color32::from_rgb(156, 160, 176),       // Overlay0
+            },
+            Theme::GruvboxDark => ThemeColors {
+                primary: Color32::from_rgb(131, 165, 152),      // Aqua
+                secondary: Color32::from_rgb(211, 134, 155),    // Purple
+                success: Color32::from_rgb(184, 187, 38),       // Green
+                warning: Color32::from_rgb(250, 189, 47),       // Yellow
+                error: Color32::from_rgb(251, 73, 52),          // Red
+                info: Color32::from_rgb(69, 133, 136),          // Blue
+                text: Color32::from_rgb(235, 219, 178),         // Fg
+                text_secondary: Color32::from_rgb(189, 174, 147), // Fg2
+                text_muted: Color32::from_rgb(146, 131, 116),   // Fg4
+                background: Color32::from_rgb(40, 40, 40),      // Bg
+                surface: Color32::from_rgb(60, 56, 54),         // Bg1
+                border: Color32::from_rgb(102, 92, 84),         // Bg3
+            },
+            Theme::GruvboxLight => ThemeColors {
+                primary: Color32::from_rgb(66, 123, 88),        // Aqua
+                secondary: Color32::from_rgb(143, 63, 113),     // Purple
+                success: Color32::from_rgb(121, 116, 14),       // Green
+                warning: Color32::from_rgb(181, 118, 20),       // Yellow
+                error: Color32::from_rgb(157, 0, 6),            // Red
+                info: Color32::from_rgb(7, 102, 120),           // Blue
+                text: Color32::from_rgb(60, 56, 54),            // Fg
+                text_secondary: Color32::from_rgb(80, 73, 69),  // Fg2
+                text_muted: Color32::from_rgb(124, 111, 100),   // Fg4
+                background: Color32::from_rgb(251, 241, 199),   // Bg
+                surface: Color32::from_rgb(235, 219, 178),      // Bg1
+                border: Color32::from_rgb(189, 174, 147),       // Bg3
+            },
+            Theme::DraculaDark => ThemeColors {
+                primary: Color32::from_rgb(189, 147, 249),      // Purple
+                secondary: Color32::from_rgb(255, 121, 198),    // Pink
+                success: Color32::from_rgb(80, 250, 123),       // Green
+                warning: Color32::from_rgb(241, 250, 140),      // Yellow
+                error: Color32::from_rgb(255, 85, 85),          // Red
+                info: Color32::from_rgb(139, 233, 253),         // Cyan
+                text: Color32::from_rgb(248, 248, 242),         // Foreground
+                text_secondary: Color32::from_rgb(198, 208, 245), // Comment
+                text_muted: Color32::from_rgb(98, 114, 164),    // Comment dark
+                background: Color32::from_rgb(40, 42, 54),      // Background
+                surface: Color32::from_rgb(68, 71, 90),         // Current line
+                border: Color32::from_rgb(98, 114, 164),        // Comment
+            },
+            Theme::SolarizedDark => ThemeColors {
+                primary: Color32::from_rgb(38, 139, 210),       // Blue
+                secondary: Color32::from_rgb(211, 54, 130),     // Magenta
+                success: Color32::from_rgb(133, 153, 0),        // Green
+                warning: Color32::from_rgb(181, 137, 0),        // Yellow
+                error: Color32::from_rgb(220, 50, 47),          // Red
+                info: Color32::from_rgb(42, 161, 152),          // Cyan
+                text: Color32::from_rgb(131, 148, 150),         // Base0
+                text_secondary: Color32::from_rgb(147, 161, 161), // Base1
+                text_muted: Color32::from_rgb(88, 110, 117),    // Base01
+                background: Color32::from_rgb(0, 43, 54),       // Base03
+                surface: Color32::from_rgb(7, 54, 66),          // Base02
+                border: Color32::from_rgb(88, 110, 117),        // Base01
+            },
+            Theme::SolarizedLight => ThemeColors {
+                primary: Color32::from_rgb(38, 139, 210),       // Blue
+                secondary: Color32::from_rgb(211, 54, 130),     // Magenta
+                success: Color32::from_rgb(133, 153, 0),        // Green
+                warning: Color32::from_rgb(181, 137, 0),        // Yellow
+                error: Color32::from_rgb(220, 50, 47),          // Red
+                info: Color32::from_rgb(42, 161, 152),          // Cyan
+                text: Color32::from_rgb(101, 123, 131),         // Base00
+                text_secondary: Color32::from_rgb(88, 110, 117), // Base01
+                text_muted: Color32::from_rgb(147, 161, 161),   // Base1
+                background: Color32::from_rgb(253, 246, 227),   // Base3
+                surface: Color32::from_rgb(238, 232, 213),      // Base2
+                border: Color32::from_rgb(147, 161, 161),       // Base1
+            },
+            Theme::TokyoNight => ThemeColors {
+                primary: Color32::from_rgb(125, 207, 255),      // Blue
+                secondary: Color32::from_rgb(187, 154, 247),    // Purple
+                success: Color32::from_rgb(158, 206, 106),      // Green
+                warning: Color32::from_rgb(224, 175, 104),      // Yellow
+                error: Color32::from_rgb(247, 118, 142),        // Red
+                info: Color32::from_rgb(125, 207, 255),         // Blue
+                text: Color32::from_rgb(192, 202, 245),         // Fg
+                text_secondary: Color32::from_rgb(169, 177, 214), // Fg_dark
+                text_muted: Color32::from_rgb(86, 95, 137),     // Comment
+                background: Color32::from_rgb(26, 27, 38),      // Bg
+                surface: Color32::from_rgb(37, 40, 56),         // Bg_highlight
+                border: Color32::from_rgb(65, 72, 104),         // Border
+            },
+            Theme::OneDark => ThemeColors {
+                primary: Color32::from_rgb(97, 175, 239),       // Blue
+                secondary: Color32::from_rgb(198, 120, 221),    // Purple
+                success: Color32::from_rgb(152, 195, 121),      // Green
+                warning: Color32::from_rgb(229, 192, 123),      // Yellow
+                error: Color32::from_rgb(224, 108, 117),        // Red
+                info: Color32::from_rgb(86, 182, 194),          // Cyan
+                text: Color32::from_rgb(171, 178, 191),         // Fg
+                text_secondary: Color32::from_rgb(92, 99, 112), // Comment
+                text_muted: Color32::from_rgb(73, 80, 93),      // Gutter_fg_grey
+                background: Color32::from_rgb(40, 44, 52),      // Black
+                surface: Color32::from_rgb(33, 37, 43),         // Visual_grey
+                border: Color32::from_rgb(92, 99, 112),         // Comment
+            },
+            Theme::MaterialDark => ThemeColors {
+                primary: Color32::from_rgb(130, 170, 255),      // Blue
+                secondary: Color32::from_rgb(199, 146, 234),    // Purple
+                success: Color32::from_rgb(195, 232, 141),      // Green
+                warning: Color32::from_rgb(255, 203, 107),      // Yellow
+                error: Color32::from_rgb(240, 113, 120),        // Red
+                info: Color32::from_rgb(137, 221, 255),         // Cyan
+                text: Color32::from_rgb(233, 237, 241),         // Text
+                text_secondary: Color32::from_rgb(176, 190, 197), // Text_secondary
+                text_muted: Color32::from_rgb(84, 110, 122),    // Disabled
+                background: Color32::from_rgb(38, 50, 56),      // Background
+                surface: Color32::from_rgb(46, 60, 67),         // Surface
+                border: Color32::from_rgb(84, 110, 122),        // Border
+            },
+        }
+    }
+
+    pub fn all_themes() -> Vec<Theme> {
+        vec![
+            Theme::CatppuccinMocha,
+            Theme::CatppuccinLatte,
+            Theme::GruvboxDark,
+            Theme::GruvboxLight,
+            Theme::DraculaDark,
+            Theme::SolarizedDark,
+            Theme::SolarizedLight,
+            Theme::TokyoNight,
+            Theme::OneDark,
+            Theme::MaterialDark,
+        ]
+    }
+
+    pub fn apply(&self, ctx: &egui::Context) {
+        match self {
+            Theme::CatppuccinMocha => apply_catppuccin_mocha(ctx),
+            Theme::CatppuccinLatte => apply_catppuccin_latte(ctx),
+            Theme::GruvboxDark => apply_gruvbox_dark(ctx),
+            Theme::GruvboxLight => apply_gruvbox_light(ctx),
+            Theme::DraculaDark => apply_dracula_dark(ctx),
+            Theme::SolarizedDark => apply_solarized_dark(ctx),
+            Theme::SolarizedLight => apply_solarized_light(ctx),
+            Theme::TokyoNight => apply_tokyo_night(ctx),
+            Theme::OneDark => apply_one_dark(ctx),
+            Theme::MaterialDark => apply_material_dark(ctx),
+        }
+    }
+}
 
 pub struct CatppuccinMocha;
 
@@ -34,7 +264,7 @@ impl CatppuccinMocha {
     pub const ROSEWATER: Color32 = Color32::from_rgb(245, 224, 220); // #f5e0dc
 }
 
-pub fn apply_catppuccin_theme(ctx: &egui::Context) {
+pub fn apply_catppuccin_mocha(ctx: &egui::Context) {
     let mut visuals = Visuals::dark();
     
     // Background colors
@@ -43,8 +273,7 @@ pub fn apply_catppuccin_theme(ctx: &egui::Context) {
     visuals.faint_bg_color = CatppuccinMocha::SURFACE0;
     visuals.extreme_bg_color = CatppuccinMocha::CRUST;
     
-    // Text colors
-    visuals.override_text_color = Some(CatppuccinMocha::TEXT);
+    // Text colors - Don't override text color to allow RichText colors to work
     visuals.warn_fg_color = CatppuccinMocha::YELLOW;
     
     // Widget colors
@@ -83,6 +312,150 @@ pub fn apply_catppuccin_theme(ctx: &egui::Context) {
     // Error colors
     visuals.error_fg_color = CatppuccinMocha::RED;
     visuals.warn_fg_color = CatppuccinMocha::YELLOW;
+    
+    ctx.set_visuals(visuals);
+}
+
+// Catppuccin Latte (Light theme)
+pub fn apply_catppuccin_latte(ctx: &egui::Context) {
+    let mut visuals = Visuals::light();
+    
+    visuals.window_fill = Color32::from_rgb(239, 241, 245);      // #eff1f5
+    visuals.panel_fill = Color32::from_rgb(230, 233, 239);       // #e6e9ef
+    visuals.faint_bg_color = Color32::from_rgb(220, 224, 232);   // #dce0e8
+    visuals.extreme_bg_color = Color32::from_rgb(204, 208, 218); // #ccd0da
+    
+    // Don't override text color to allow RichText colors to work
+    visuals.widgets.active.bg_fill = Color32::from_rgb(30, 102, 245);   // #1e66f5
+    visuals.hyperlink_color = Color32::from_rgb(30, 102, 245);
+    
+    ctx.set_visuals(visuals);
+}
+
+// Gruvbox Dark
+pub fn apply_gruvbox_dark(ctx: &egui::Context) {
+    let mut visuals = Visuals::dark();
+    
+    visuals.window_fill = Color32::from_rgb(40, 40, 40);         // #282828
+    visuals.panel_fill = Color32::from_rgb(50, 48, 47);          // #32302f
+    visuals.faint_bg_color = Color32::from_rgb(60, 56, 54);      // #3c3836
+    visuals.extreme_bg_color = Color32::from_rgb(29, 32, 33);    // #1d2021
+    
+    // Don't override text color to allow RichText colors to work
+    visuals.widgets.active.bg_fill = Color32::from_rgb(254, 128, 25);     // #fe8019
+    visuals.hyperlink_color = Color32::from_rgb(131, 165, 152);           // #83a598
+    
+    ctx.set_visuals(visuals);
+}
+
+// Gruvbox Light
+pub fn apply_gruvbox_light(ctx: &egui::Context) {
+    let mut visuals = Visuals::light();
+    
+    visuals.window_fill = Color32::from_rgb(251, 241, 199);      // #fbf1c7
+    visuals.panel_fill = Color32::from_rgb(242, 229, 188);       // #f2e5bc
+    visuals.faint_bg_color = Color32::from_rgb(235, 219, 178);   // #ebdbb2
+    visuals.extreme_bg_color = Color32::from_rgb(213, 196, 161); // #d5c4a1
+    
+    // Don't override text color to allow RichText colors to work
+    visuals.widgets.active.bg_fill = Color32::from_rgb(175, 58, 3);    // #af3a03
+    visuals.hyperlink_color = Color32::from_rgb(69, 133, 136);         // #458588
+    
+    ctx.set_visuals(visuals);
+}
+
+// Dracula
+pub fn apply_dracula_dark(ctx: &egui::Context) {
+    let mut visuals = Visuals::dark();
+    
+    visuals.window_fill = Color32::from_rgb(40, 42, 54);         // #282a36
+    visuals.panel_fill = Color32::from_rgb(68, 71, 90);          // #44475a
+    visuals.faint_bg_color = Color32::from_rgb(98, 114, 164);    // #6272a4
+    visuals.extreme_bg_color = Color32::from_rgb(33, 34, 44);    // #21222c
+    
+    // Don't override text color to allow RichText colors to work
+    visuals.widgets.active.bg_fill = Color32::from_rgb(189, 147, 249);    // #bd93f9
+    visuals.hyperlink_color = Color32::from_rgb(139, 233, 253);           // #8be9fd
+    
+    ctx.set_visuals(visuals);
+}
+
+// Solarized Dark
+pub fn apply_solarized_dark(ctx: &egui::Context) {
+    let mut visuals = Visuals::dark();
+    
+    visuals.window_fill = Color32::from_rgb(0, 43, 54);          // #002b36
+    visuals.panel_fill = Color32::from_rgb(7, 54, 66);           // #073642
+    visuals.faint_bg_color = Color32::from_rgb(88, 110, 117);    // #586e75
+    visuals.extreme_bg_color = Color32::from_rgb(0, 30, 38);     // #001e26
+    
+    // Don't override text color to allow RichText colors to work
+    visuals.widgets.active.bg_fill = Color32::from_rgb(38, 139, 210);     // #268bd2
+    visuals.hyperlink_color = Color32::from_rgb(42, 161, 152);            // #2aa198
+    
+    ctx.set_visuals(visuals);
+}
+
+// Solarized Light
+pub fn apply_solarized_light(ctx: &egui::Context) {
+    let mut visuals = Visuals::light();
+    
+    visuals.window_fill = Color32::from_rgb(253, 246, 227);      // #fdf6e3
+    visuals.panel_fill = Color32::from_rgb(238, 232, 213);       // #eee8d5
+    visuals.faint_bg_color = Color32::from_rgb(147, 161, 161);   // #93a1a1
+    visuals.extreme_bg_color = Color32::from_rgb(220, 215, 201); // #dcd7c9
+    
+    // Don't override text color to allow RichText colors to work
+    visuals.widgets.active.bg_fill = Color32::from_rgb(38, 139, 210);     // #268bd2
+    visuals.hyperlink_color = Color32::from_rgb(42, 161, 152);            // #2aa198
+    
+    ctx.set_visuals(visuals);
+}
+
+// Tokyo Night
+pub fn apply_tokyo_night(ctx: &egui::Context) {
+    let mut visuals = Visuals::dark();
+    
+    visuals.window_fill = Color32::from_rgb(36, 40, 59);         // #24283b
+    visuals.panel_fill = Color32::from_rgb(26, 27, 38);          // #1a1b26
+    visuals.faint_bg_color = Color32::from_rgb(65, 72, 104);     // #414868
+    visuals.extreme_bg_color = Color32::from_rgb(22, 22, 30);    // #16161e
+    
+    // Don't override text color to allow RichText colors to work
+    visuals.widgets.active.bg_fill = Color32::from_rgb(125, 207, 255);    // #7dcfff
+    visuals.hyperlink_color = Color32::from_rgb(187, 154, 247);           // #bb9af7
+    
+    ctx.set_visuals(visuals);
+}
+
+// One Dark
+pub fn apply_one_dark(ctx: &egui::Context) {
+    let mut visuals = Visuals::dark();
+    
+    visuals.window_fill = Color32::from_rgb(40, 44, 52);         // #282c34
+    visuals.panel_fill = Color32::from_rgb(33, 37, 43);          // #21252b
+    visuals.faint_bg_color = Color32::from_rgb(60, 64, 73);      // #3c4049
+    visuals.extreme_bg_color = Color32::from_rgb(28, 31, 36);    // #1c1f24
+    
+    // Don't override text color to allow RichText colors to work
+    visuals.widgets.active.bg_fill = Color32::from_rgb(97, 175, 239);     // #61afef
+    visuals.hyperlink_color = Color32::from_rgb(224, 108, 117);           // #e06c75
+    
+    ctx.set_visuals(visuals);
+}
+
+// Material Dark
+pub fn apply_material_dark(ctx: &egui::Context) {
+    let mut visuals = Visuals::dark();
+    
+    visuals.window_fill = Color32::from_rgb(33, 33, 33);         // #212121
+    visuals.panel_fill = Color32::from_rgb(48, 48, 48);          // #303030
+    visuals.faint_bg_color = Color32::from_rgb(66, 66, 66);      // #424242
+    visuals.extreme_bg_color = Color32::from_rgb(18, 18, 18);    // #121212
+    
+    // Don't override text color to allow RichText colors to work
+    visuals.widgets.active.bg_fill = Color32::from_rgb(33, 150, 243);     // #2196f3
+    visuals.hyperlink_color = Color32::from_rgb(3, 169, 244);             // #03a9f4
     
     ctx.set_visuals(visuals);
 }

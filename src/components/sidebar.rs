@@ -1,5 +1,5 @@
 use crate::post::{BlogPost, PostStatus};
-use crate::theme::CatppuccinMocha;
+use crate::theme::ThemeColors;
 use egui::{Color32, RichText, Ui, Vec2};
 
 pub struct Sidebar {
@@ -29,13 +29,13 @@ impl Sidebar {
         self.selected_post_id = id;
     }
 
-    pub fn show(&mut self, ui: &mut Ui, posts: &[BlogPost]) -> SidebarAction {
+    pub fn show(&mut self, ui: &mut Ui, posts: &[BlogPost], theme_colors: &ThemeColors) -> SidebarAction {
         let mut action = SidebarAction::None;
 
         ui.vertical(|ui| {
             // Header
             ui.horizontal(|ui| {
-                ui.heading(RichText::new("📝 Blogster").color(CatppuccinMocha::BLUE));
+                ui.heading(RichText::new("📝 Blogster").color(theme_colors.primary));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.button(RichText::new("➕").size(16.0)).clicked() {
                         action = SidebarAction::NewPost;
@@ -47,7 +47,7 @@ impl Sidebar {
 
             // Search bar
             ui.horizontal(|ui| {
-                ui.label("🔍");
+                ui.label(RichText::new("🔍").color(theme_colors.text));
                 ui.text_edit_singleline(&mut self.search_query);
             });
 
@@ -86,24 +86,24 @@ impl Sidebar {
                 .auto_shrink([false, true])
                 .show(ui, |ui| {
                     if !drafts.is_empty() {
-                        self.show_post_group(ui, "📄 Drafts", &drafts, CatppuccinMocha::YELLOW, &mut action);
+                        self.show_post_group(ui, "📄 Drafts", &drafts, theme_colors.warning, &mut action, theme_colors);
                         ui.separator();
                     }
 
                     if !published.is_empty() {
-                        self.show_post_group(ui, "✅ Published", &published, CatppuccinMocha::GREEN, &mut action);
+                        self.show_post_group(ui, "✅ Published", &published, theme_colors.success, &mut action, theme_colors);
                         ui.separator();
                     }
 
                     if !failed.is_empty() {
-                        self.show_post_group(ui, "❌ Failed", &failed, CatppuccinMocha::RED, &mut action);
+                        self.show_post_group(ui, "❌ Failed", &failed, theme_colors.error, &mut action, theme_colors);
                     }
 
                     if drafts.is_empty() && published.is_empty() && failed.is_empty() {
                         ui.vertical_centered(|ui| {
                             ui.add_space(50.0);
-                            ui.label(RichText::new("No posts found").color(CatppuccinMocha::SUBTEXT1));
-                            ui.label(RichText::new("Click ➕ to create your first post").color(CatppuccinMocha::SUBTEXT0));
+                            ui.label(RichText::new("No posts found").color(theme_colors.text_secondary));
+                            ui.label(RichText::new("Click ➕ to create your first post").color(theme_colors.text_muted));
                         });
                     }
                 });
@@ -119,6 +119,7 @@ impl Sidebar {
         posts: &[&BlogPost],
         color: Color32,
         action: &mut SidebarAction,
+        theme_colors: &ThemeColors,
     ) {
         ui.label(RichText::new(title).color(color).strong());
         ui.add_space(5.0);
@@ -136,13 +137,13 @@ impl Sidebar {
                 ui.painter().rect_filled(
                     response.rect,
                     4.0,
-                    CatppuccinMocha::SURFACE1,
+                    theme_colors.surface,
                 );
             } else if response.hovered() {
                 ui.painter().rect_filled(
                     response.rect,
                     4.0,
-                    CatppuccinMocha::SURFACE0,
+                    theme_colors.background,
                 );
             }
 
@@ -160,9 +161,9 @@ impl Sidebar {
                         RichText::new(title_text)
                             .strong()
                             .color(if post.title.is_empty() {
-                                CatppuccinMocha::SUBTEXT1
+                                theme_colors.text_secondary
                             } else {
-                                CatppuccinMocha::TEXT
+                                theme_colors.text
                             })
                     );
 
@@ -171,7 +172,7 @@ impl Sidebar {
                         ui.label(
                             RichText::new(format!("{} words", post.word_count()))
                                 .small()
-                                .color(CatppuccinMocha::SUBTEXT0)
+                                .color(theme_colors.text_muted)
                         );
                         
                         if !post.tags.is_empty() {
@@ -179,7 +180,7 @@ impl Sidebar {
                             ui.label(
                                 RichText::new(format!("{} tags", post.tags.len()))
                                     .small()
-                                    .color(CatppuccinMocha::SUBTEXT0)
+                                    .color(theme_colors.text_muted)
                             );
                         }
 
@@ -187,7 +188,7 @@ impl Sidebar {
                             ui.label(
                                 RichText::new(post.updated_at.format("%m/%d").to_string())
                                     .small()
-                                    .color(CatppuccinMocha::SUBTEXT0)
+                                    .color(theme_colors.text_muted)
                             );
                         });
                     });

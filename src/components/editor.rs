@@ -1,5 +1,5 @@
 use crate::post::BlogPost;
-use crate::theme::CatppuccinMocha;
+use crate::theme::ThemeColors;
 use egui::{RichText, Ui};
 
 pub struct MarkdownEditor {
@@ -40,7 +40,7 @@ impl MarkdownEditor {
         self.current_post.take()
     }
 
-    pub fn show(&mut self, ui: &mut Ui) -> EditorAction {
+    pub fn show(&mut self, ui: &mut Ui, theme_colors: &ThemeColors) -> EditorAction {
         let mut action = EditorAction::None;
 
         if let Some(post) = &mut self.current_post {
@@ -51,13 +51,13 @@ impl MarkdownEditor {
                     
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         // Save button
-                        if ui.button(RichText::new("💾 Save").color(CatppuccinMocha::GREEN)).clicked() {
+                        if ui.button(RichText::new("💾 Save").color(theme_colors.success)).clicked() {
                             action = EditorAction::Save;
                         }
 
                         // Publish button
                         if post.is_ready_to_publish() {
-                            if ui.button(RichText::new("🚀 Publish").color(CatppuccinMocha::BLUE)).clicked() {
+                            if ui.button(RichText::new("🚀 Publish").color(theme_colors.primary)).clicked() {
                                 action = EditorAction::Publish;
                             }
                         }
@@ -79,7 +79,7 @@ impl MarkdownEditor {
 
                 // Title input
                 ui.horizontal(|ui| {
-                    ui.label("Title:");
+                    ui.label(RichText::new("Title:").color(theme_colors.text));
                     let title_response = ui.text_edit_singleline(&mut post.title);
                     if title_response.changed() {
                         post.updated_at = chrono::Utc::now();
@@ -89,13 +89,13 @@ impl MarkdownEditor {
 
                 // Tags section
                 ui.horizontal(|ui| {
-                    ui.label("Tags:");
+                    ui.label(RichText::new("Tags:").color(theme_colors.text));
                     
                     // Display existing tags
                     let tags_to_remove: Vec<String> = post.tags.iter().cloned().collect();
                     for tag in &tags_to_remove {
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new(&format!("#{}", tag)).color(CatppuccinMocha::BLUE));
+                            ui.label(RichText::new(&format!("#{}", tag)).color(theme_colors.primary));
                             if ui.small_button("❌").clicked() {
                                 post.remove_tag(tag);
                                 action = EditorAction::Changed;
@@ -121,7 +121,7 @@ impl MarkdownEditor {
 
                 // Image URL input
                 ui.horizontal(|ui| {
-                    ui.label("Image:");
+                    ui.label(RichText::new("Image:").color(theme_colors.text));
                     let mut image_url = post.image_url.clone().unwrap_or_default();
                     let image_response = ui.text_edit_singleline(&mut image_url);
                     if image_response.changed() {
@@ -142,9 +142,9 @@ impl MarkdownEditor {
                 if self.preview_mode {
                     // Preview mode
                     ui.horizontal(|ui| {
-                        ui.label(RichText::new("Preview").strong().color(CatppuccinMocha::GREEN));
+                        ui.label(RichText::new("Preview").strong().color(theme_colors.success));
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            ui.label(RichText::new(format!("{} words", post.word_count())).small().color(CatppuccinMocha::SUBTEXT1));
+                            ui.label(RichText::new(format!("{} words", post.word_count())).small().color(theme_colors.text_secondary));
                         });
                     });
 
@@ -153,38 +153,38 @@ impl MarkdownEditor {
                         let lines: Vec<&str> = post.content.lines().collect();
                         for line in lines {
                             if line.starts_with("# ") {
-                                ui.heading(RichText::new(&line[2..]).color(CatppuccinMocha::LAVENDER));
+                                ui.heading(RichText::new(&line[2..]).color(theme_colors.primary));
                             } else if line.starts_with("## ") {
-                                ui.add(egui::Label::new(RichText::new(&line[3..]).heading().color(CatppuccinMocha::BLUE)));
+                                ui.add(egui::Label::new(RichText::new(&line[3..]).heading().color(theme_colors.secondary)));
                             } else if line.starts_with("### ") {
-                                ui.add(egui::Label::new(RichText::new(&line[4..]).strong().color(CatppuccinMocha::SKY)));
+                                ui.add(egui::Label::new(RichText::new(&line[4..]).strong().color(theme_colors.info)));
                             } else if line.starts_with("#### ") {
-                                ui.add(egui::Label::new(RichText::new(&line[5..]).strong().color(CatppuccinMocha::TEAL)));
+                                ui.add(egui::Label::new(RichText::new(&line[5..]).strong().color(theme_colors.success)));
                             } else if line.starts_with("##### ") {
-                                ui.add(egui::Label::new(RichText::new(&line[6..]).strong().color(CatppuccinMocha::GREEN)));
+                                ui.add(egui::Label::new(RichText::new(&line[6..]).strong().color(theme_colors.warning)));
                             } else if line.starts_with("###### ") {
-                                ui.add(egui::Label::new(RichText::new(&line[7..]).strong().color(CatppuccinMocha::YELLOW)));
+                                ui.add(egui::Label::new(RichText::new(&line[7..]).strong().color(theme_colors.error)));
                             } else if line.starts_with("**") && line.ends_with("**") && line.len() > 4 {
-                                ui.add(egui::Label::new(RichText::new(&line[2..line.len()-2]).strong().color(CatppuccinMocha::PEACH)));
+                                ui.add(egui::Label::new(RichText::new(&line[2..line.len()-2]).strong().color(theme_colors.text)));
                             } else if line.starts_with("*") && line.ends_with("*") && line.len() > 2 && !line.starts_with("**") {
-                                ui.add(egui::Label::new(RichText::new(&line[1..line.len()-1]).italics().color(CatppuccinMocha::MAUVE)));
+                                ui.add(egui::Label::new(RichText::new(&line[1..line.len()-1]).italics().color(theme_colors.secondary)));
                             } else if line.starts_with("> ") {
-                                ui.add(egui::Label::new(RichText::new(&line[2..]).color(CatppuccinMocha::OVERLAY2)));
+                                ui.add(egui::Label::new(RichText::new(&line[2..]).color(theme_colors.text_secondary)));
                             } else if line.starts_with("```") {
-                                ui.add(egui::Label::new(RichText::new(line).monospace().color(CatppuccinMocha::SUBTEXT0)));
+                                ui.add(egui::Label::new(RichText::new(line).monospace().color(theme_colors.text_muted)));
                             } else if line.trim().is_empty() {
                                 ui.add_space(5.0);
                             } else {
-                                ui.add(egui::Label::new(RichText::new(line).color(CatppuccinMocha::TEXT)));
+                                ui.add(egui::Label::new(RichText::new(line).color(theme_colors.text)));
                             }
                         }
                     });
                 } else {
                     // Edit mode
                     ui.horizontal(|ui| {
-                        ui.label(RichText::new("Content (Markdown)").strong().color(CatppuccinMocha::BLUE));
+                        ui.label(RichText::new("Content (Markdown)").strong().color(theme_colors.primary));
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            ui.label(RichText::new(format!("{} words", post.word_count())).small().color(CatppuccinMocha::SUBTEXT1));
+                            ui.label(RichText::new(format!("{} words", post.word_count())).small().color(theme_colors.text_secondary));
                         });
                     });
 
@@ -207,9 +207,9 @@ impl MarkdownEditor {
                 ui.separator();
                 ui.horizontal(|ui| {
                     let status_color = match post.status {
-                        crate::post::PostStatus::Draft => CatppuccinMocha::YELLOW,
-                        crate::post::PostStatus::Published => CatppuccinMocha::GREEN,
-                        crate::post::PostStatus::Failed => CatppuccinMocha::RED,
+                        crate::post::PostStatus::Draft => theme_colors.warning,
+                        crate::post::PostStatus::Published => theme_colors.success,
+                        crate::post::PostStatus::Failed => theme_colors.error,
                     };
                     
                     ui.label(RichText::new(format!("Status: {:?}", post.status)).color(status_color));
@@ -218,7 +218,7 @@ impl MarkdownEditor {
                         ui.label(RichText::new(format!(
                             "Updated: {}",
                             post.updated_at.format("%Y-%m-%d %H:%M")
-                        )).small().color(CatppuccinMocha::SUBTEXT1));
+                        )).small().color(theme_colors.text_secondary));
                     });
                 });
             });
@@ -226,9 +226,9 @@ impl MarkdownEditor {
             // No post selected
             ui.vertical_centered(|ui| {
                 ui.add_space(100.0);
-                ui.label(RichText::new("No post selected").size(20.0).color(CatppuccinMocha::SUBTEXT1));
+                ui.label(RichText::new("No post selected").size(20.0).color(theme_colors.text_secondary));
                 ui.add_space(10.0);
-                ui.label(RichText::new("Select a post from the sidebar or create a new one").color(CatppuccinMocha::SUBTEXT0));
+                ui.label(RichText::new("Select a post from the sidebar or create a new one").color(theme_colors.text_muted));
             });
         }
 

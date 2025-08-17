@@ -1,9 +1,9 @@
 use crate::blossom_client::{BlossomClient, BlossomSettings};
-use crate::components::{CredentialsDialog, EditorAction, MarkdownEditor, PublishDialog, Sidebar, SidebarAction};
+use crate::components::{CredentialsDialog, EditorAction, MarkdownEditor, PublishDialog, SettingsDialog, Sidebar, SidebarAction};
 use crate::nostr_client::NostrClient;
 use crate::post::BlogPost;
 use crate::storage::Storage;
-use crate::theme::{apply_catppuccin_theme, CatppuccinMocha};
+use crate::theme::Theme;
 use egui::{CentralPanel, RichText, SidePanel, TopBottomPanel};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -19,9 +19,11 @@ pub struct BlogsterApp {
     editor: MarkdownEditor,
     credentials_dialog: CredentialsDialog,
     publish_dialog: PublishDialog,
+    settings_dialog: SettingsDialog,
     
     // State
     posts: Vec<BlogPost>,
+    current_theme: Theme,
     error_message: Option<String>,
     success_message: Option<String>,
     is_loading: bool,
@@ -34,11 +36,22 @@ pub struct BlogsterApp {
 
 impl BlogsterApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // Apply theme
-        apply_catppuccin_theme(&cc.egui_ctx);
-        
         // Initialize storage
         let storage = Storage::new().expect("Failed to initialize storage");
+        
+        // Load theme preference
+        let current_theme = storage.load_theme().unwrap_or_else(|e| {
+            tracing::warn!("Failed to load theme preference: {}", e);
+            Theme::default()
+        });
+        
+        // Apply theme
+        current_theme.apply(&cc.egui_ctx);
+        
+        // Migrate posts from old location if needed
+        if let Err(e) = storage.migrate_posts_if_needed() {
+            tracing::warn!("Failed to migrate posts: {}", e);
+        }
         
         // Load posts
         let posts = storage.load_all_posts().unwrap_or_else(|e| {
@@ -71,7 +84,9 @@ impl BlogsterApp {
             editor: MarkdownEditor::new(),
             credentials_dialog: CredentialsDialog::new(),
             publish_dialog: PublishDialog::new(),
+            settings_dialog: SettingsDialog::new(),
             posts,
+            current_theme,
             error_message: None,
             success_message: None,
             is_loading: false,
@@ -93,15 +108,27 @@ impl BlogsterApp {
         
         app
     }
+
+    fn theme_colors(&self) -> crate::theme::ThemeColors {
+        self.current_theme.colors()
+    }
     
     fn show_top_panel(&mut self, ctx: &egui::Context) {
         TopBottomPanel::top("top_panel").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.label(RichText::new("Blogster").size(18.0).strong().color(CatppuccinMocha::BLUE));
+                let colors = self.theme_colors();
+                ui.label(RichText::new("Blogster").size(18.0).strong().color(colors.primary));
                 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     // Settings menu
                     ui.menu_button("⚙️ Settings", |ui| {
+                        if ui.button("🎨 Appearance").clicked() {
+                            self.settings_dialog.open(self.current_theme);
+                            ui.close_menu();
+                        }
+                        
+                        ui.separator();
+                        
                         if ui.button("🔑 Nostr Credentials").clicked() {
                             self.credentials_dialog.open_with_storage(&self.storage);
                             ui.close_menu();
@@ -111,6 +138,8 @@ impl BlogsterApp {
                             self.show_settings = true;
                             ui.close_menu();
                         }
+                        
+                        ui.separator();
                         
                         if ui.button("📁 Open Posts Folder").clicked() {
                             if let Err(e) = opener::open(self.storage.posts_dir()) {
@@ -142,11 +171,12 @@ impl BlogsterApp {
                             "🔓 No Credentials"
                         };
                         
+                        let colors = self.theme_colors();
                         ui.label(RichText::new(creds_text).color(
                             if has_credentials {
-                                CatppuccinMocha::GREEN
+                                colors.success
                             } else {
-                                CatppuccinMocha::YELLOW
+                                colors.warning
                             }
                         ));
                         
@@ -159,11 +189,12 @@ impl BlogsterApp {
                             "✅ Ready"
                         };
                         
+                        let colors = self.theme_colors();
                         ui.label(RichText::new(status_text).color(
                             if self.is_loading {
-                                CatppuccinMocha::YELLOW
+                                colors.warning
                             } else {
-                                CatppuccinMocha::GREEN
+                                colors.success
                             }
                         ));
                     });
@@ -176,18 +207,19 @@ impl BlogsterApp {
         TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
             ui.horizontal(|ui| {
                 // Show messages
+                let colors = self.theme_colors();
                 if let Some(error) = &self.error_message {
-                    ui.label(RichText::new(format!("❌ {}", error)).color(CatppuccinMocha::RED));
+                    ui.label(RichText::new(format!("❌ {}", error)).color(colors.error));
                     if ui.button("✖").clicked() {
                         self.error_message = None;
                     }
                 } else if let Some(success) = &self.success_message {
-                    ui.label(RichText::new(format!("✅ {}", success)).color(CatppuccinMocha::GREEN));
+                    ui.label(RichText::new(format!("✅ {}", success)).color(colors.success));
                     if ui.button("✖").clicked() {
                         self.success_message = None;
                     }
                 } else {
-                    ui.label(RichText::new(format!("{} posts", self.posts.len())).color(CatppuccinMocha::SUBTEXT1));
+                    ui.label(RichText::new(format!("{} posts", self.posts.len())).color(colors.text_secondary));
                 }
             });
         });
@@ -401,6 +433,14 @@ impl eframe::App for BlogsterApp {
         // Handle dialogs
         self.credentials_dialog.show(ctx, &mut self.storage, &self.nostr_client, &self.runtime);
         
+        // Handle settings dialog
+        let theme_colors = self.theme_colors();
+        if let Some(new_theme) = self.settings_dialog.show(ctx, &self.storage, &theme_colors) {
+            self.current_theme = new_theme;
+            new_theme.apply(ctx);
+            self.success_message = Some(format!("Theme changed to {}!", new_theme.name()));
+        }
+        
         // Show Blossom settings dialog
         if self.show_settings {
             egui::Window::new("🌸 Blossom Settings")
@@ -473,12 +513,14 @@ impl eframe::App for BlogsterApp {
         
         // Main content
         SidePanel::left("sidebar").resizable(true).show(ctx, |ui| {
-            let action = self.sidebar.show(ui, &self.posts);
+            let theme_colors = self.theme_colors();
+            let action = self.sidebar.show(ui, &self.posts, &theme_colors);
             self.handle_sidebar_action(action);
         });
         
         CentralPanel::default().show(ctx, |ui| {
-            let action = self.editor.show(ui);
+            let theme_colors = self.theme_colors();
+            let action = self.editor.show(ui, &theme_colors);
             self.handle_editor_action(action);
         });
     }

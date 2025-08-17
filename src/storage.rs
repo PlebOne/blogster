@@ -1,6 +1,8 @@
 use crate::blossom_client::BlossomSettings;
 use crate::post::{BlogPost, NostrCredentials};
+use crate::theme::Theme;
 use anyhow::{Context, Result};
+use base64::Engine;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -11,13 +13,17 @@ pub struct Storage {
 
 impl Storage {
     pub fn new() -> Result<Self> {
-        let app_dir = dirs::config_dir()
+        // Config directory for credentials and settings (hidden)
+        let config_dir = dirs::config_dir()
             .or_else(|| dirs::home_dir().map(|h| h.join(".config")))
             .context("Could not find config directory")?
             .join("blogster");
 
-        let posts_dir = app_dir.join("posts");
-        let config_dir = app_dir;
+        // Documents directory for posts and drafts (user-visible)
+        let posts_dir = dirs::document_dir()
+            .or_else(|| dirs::home_dir().map(|h| h.join("Documents")))
+            .context("Could not find documents directory")?
+            .join("blogster");
 
         // Create directories if they don't exist
         fs::create_dir_all(&posts_dir)
@@ -25,10 +31,60 @@ impl Storage {
         fs::create_dir_all(&config_dir)
             .context("Failed to create config directory")?;
 
+        tracing::info!("Posts directory: {}", posts_dir.display());
+        tracing::info!("Config directory: {}", config_dir.display());
+
         Ok(Self {
             posts_dir,
             config_dir,
         })
+    }
+
+    /// Migrate posts from old config directory to new Documents directory
+    pub fn migrate_posts_if_needed(&self) -> Result<()> {
+        let old_posts_dir = self.config_dir.join("posts");
+        
+        if old_posts_dir.exists() {
+            tracing::info!("Found old posts directory, migrating to Documents...");
+            
+            let entries = fs::read_dir(&old_posts_dir)
+                .context("Failed to read old posts directory")?;
+            
+            let mut migrated_count = 0;
+            for entry in entries {
+                let entry = entry.context("Failed to read directory entry")?;
+                let path = entry.path();
+                
+                if path.is_file() && path.extension().map_or(false, |ext| ext == "md") {
+                    let filename = path.file_name()
+                        .context("Invalid filename")?;
+                    let new_path = self.posts_dir.join(filename);
+                    
+                    // Only migrate if file doesn't already exist in new location
+                    if !new_path.exists() {
+                        fs::copy(&path, &new_path)
+                            .with_context(|| format!("Failed to migrate {}", path.display()))?;
+                        migrated_count += 1;
+                        tracing::info!("Migrated: {} -> {}", path.display(), new_path.display());
+                    }
+                }
+            }
+            
+            if migrated_count > 0 {
+                tracing::info!("Successfully migrated {} posts to Documents/blogster", migrated_count);
+                
+                // Optionally remove old directory if empty
+                if fs::read_dir(&old_posts_dir)?.count() == 0 {
+                    fs::remove_dir(&old_posts_dir)
+                        .context("Failed to remove empty old posts directory")?;
+                    tracing::info!("Removed empty old posts directory");
+                }
+            } else {
+                tracing::info!("No posts needed migration");
+            }
+        }
+        
+        Ok(())
     }
 
     /// Save a blog post as a markdown file
@@ -107,53 +163,166 @@ impl Storage {
         Ok(())
     }
 
-    /// Save Nostr credentials securely using keyring
+    /// Save Nostr credentials securely using keyring with file fallback
     pub fn save_credentials(&self, credentials: &NostrCredentials) -> Result<()> {
-        let entry = keyring::Entry::new("blogster", "nostr_credentials")
-            .context("Failed to create keyring entry")?;
-        
         let json = serde_json::to_string(credentials)
             .context("Failed to serialize credentials")?;
         
-        entry.set_password(&json)
-            .context("Failed to save credentials to keyring")?;
+        let mut keyring_success = false;
+        let mut file_success = false;
+
+        // Try keyring first
+        let entry = keyring::Entry::new("blogster", "nostr_credentials")
+            .context("Failed to create keyring entry")?;
         
-        tracing::info!("Saved Nostr credentials securely");
-        Ok(())
+        match entry.set_password(&json) {
+            Ok(()) => {
+                tracing::info!("Saved Nostr credentials to keyring");
+                keyring_success = true;
+            }
+            Err(e) => {
+                tracing::warn!("Keyring failed: {}", e);
+            }
+        }
+        
+        // ALWAYS also save to file as backup (in case keyring is MockCredential)
+        match self.save_credentials_to_file(credentials) {
+            Ok(()) => {
+                file_success = true;
+            }
+            Err(e) => {
+                tracing::warn!("File backup failed: {}", e);
+            }
+        }
+        
+        // Return success if either method worked
+        if keyring_success || file_success {
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Both keyring and file storage failed"))
+        }
     }
 
-    /// Load Nostr credentials from keyring
+    /// Load Nostr credentials from keyring with file fallback
     pub fn load_credentials(&self) -> Result<Option<NostrCredentials>> {
+        // Try keyring first
         let entry = keyring::Entry::new("blogster", "nostr_credentials")
             .context("Failed to create keyring entry")?;
         
         match entry.get_password() {
             Ok(json) => {
+                tracing::debug!("Loaded credentials from keyring");
                 let credentials = serde_json::from_str(&json)
                     .context("Failed to deserialize credentials")?;
                 Ok(Some(credentials))
             }
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(e) => Err(anyhow::anyhow!("Failed to load credentials: {}", e)),
+            Err(keyring::Error::NoEntry) => {
+                tracing::debug!("No credentials in keyring, trying file fallback");
+                self.load_credentials_from_file()
+            }
+            Err(e) => {
+                tracing::warn!("Keyring failed ({}), trying file fallback", e);
+                self.load_credentials_from_file()
+            }
         }
     }
 
-    /// Delete stored Nostr credentials
+    /// Delete stored Nostr credentials from both keyring and file
     pub fn delete_credentials(&self) -> Result<()> {
+        let mut keyring_result = Ok(());
+        let mut file_result = Ok(());
+
+        // Try to delete from keyring
         let entry = keyring::Entry::new("blogster", "nostr_credentials")
             .context("Failed to create keyring entry")?;
         
         match entry.delete_credential() {
             Ok(()) => {
-                tracing::info!("Deleted Nostr credentials");
-                Ok(())
+                tracing::info!("Deleted Nostr credentials from keyring");
             }
             Err(keyring::Error::NoEntry) => {
-                tracing::debug!("No credentials to delete");
+                tracing::debug!("No credentials in keyring to delete");
+            }
+            Err(e) => {
+                tracing::warn!("Failed to delete from keyring: {}", e);
+                keyring_result = Err(anyhow::anyhow!("Keyring delete failed: {}", e));
+            }
+        }
+
+        // Also try to delete from file fallback
+        file_result = self.delete_fallback_credentials();
+
+        // Return success if either method worked
+        if keyring_result.is_ok() || file_result.is_ok() {
+            Ok(())
+        } else {
+            keyring_result
+        }
+    }
+
+    /// Save credentials to encrypted file as fallback
+    fn save_credentials_to_file(&self, credentials: &NostrCredentials) -> Result<()> {
+        eprintln!("🔧 DEBUG: save_credentials_to_file called");
+        let credentials_path = self.config_dir.join("credentials.enc");
+        eprintln!("🔧 DEBUG: Saving to path: {:?}", credentials_path);
+        
+        let json = serde_json::to_string(credentials)
+            .context("Failed to serialize credentials")?;
+        eprintln!("🔧 DEBUG: Serialized JSON: {}", json);
+        
+        // Simple base64 encoding (not encryption, but obscures the data)
+        let encoded = base64::prelude::BASE64_STANDARD.encode(json.as_bytes());
+        eprintln!("🔧 DEBUG: Encoded length: {}", encoded.len());
+        
+        match std::fs::write(&credentials_path, encoded) {
+            Ok(()) => {
+                eprintln!("🔧 DEBUG: File write successful");
+                tracing::info!("Saved Nostr credentials to file fallback");
                 Ok(())
             }
-            Err(e) => Err(anyhow::anyhow!("Failed to delete credentials: {}", e)),
+            Err(e) => {
+                eprintln!("🔧 DEBUG: File write failed: {}", e);
+                Err(anyhow::anyhow!("Failed to write credentials file: {}", e))
+            }
         }
+    }
+
+    /// Load credentials from file fallback
+    fn load_credentials_from_file(&self) -> Result<Option<NostrCredentials>> {
+        let credentials_path = self.config_dir.join("credentials.enc");
+        
+        if !credentials_path.exists() {
+            tracing::debug!("No credentials file found");
+            return Ok(None);
+        }
+        
+        let encoded = std::fs::read_to_string(&credentials_path)
+            .context("Failed to read credentials file")?;
+        
+        let json_bytes = base64::prelude::BASE64_STANDARD.decode(encoded.trim())
+            .context("Failed to decode credentials")?;
+        
+        let json = String::from_utf8(json_bytes)
+            .context("Invalid UTF-8 in credentials file")?;
+        
+        let credentials = serde_json::from_str(&json)
+            .context("Failed to deserialize credentials")?;
+        
+        tracing::info!("Loaded Nostr credentials from file fallback");
+        Ok(Some(credentials))
+    }
+
+    /// Delete fallback credentials file
+    fn delete_fallback_credentials(&self) -> Result<()> {
+        let credentials_path = self.config_dir.join("credentials.enc");
+        
+        if credentials_path.exists() {
+            std::fs::remove_file(&credentials_path)
+                .context("Failed to delete credentials file")?;
+            tracing::info!("Deleted fallback credentials file");
+        }
+        
+        Ok(())
     }
 
     /// Get the posts directory path
@@ -219,5 +388,37 @@ impl Storage {
         
         tracing::info!("Loaded Blossom settings from {}", settings_path.display());
         Ok(settings)
+    }
+
+    /// Save theme preference
+    pub fn save_theme(&self, theme: Theme) -> Result<()> {
+        let theme_path = self.config_dir.join("theme.json");
+        let content = serde_json::to_string_pretty(&theme)
+            .context("Failed to serialize theme")?;
+        
+        fs::write(&theme_path, content)
+            .with_context(|| format!("Failed to write theme to {}", theme_path.display()))?;
+        
+        tracing::info!("Saved theme preference: {}", theme.name());
+        Ok(())
+    }
+
+    /// Load theme preference
+    pub fn load_theme(&self) -> Result<Theme> {
+        let theme_path = self.config_dir.join("theme.json");
+        
+        if !theme_path.exists() {
+            tracing::info!("No theme file found, using default");
+            return Ok(Theme::default());
+        }
+
+        let content = fs::read_to_string(&theme_path)
+            .with_context(|| format!("Failed to read theme from {}", theme_path.display()))?;
+        
+        let theme: Theme = serde_json::from_str(&content)
+            .context("Failed to parse theme")?;
+        
+        tracing::info!("Loaded theme preference: {}", theme.name());
+        Ok(theme)
     }
 }

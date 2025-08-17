@@ -185,10 +185,16 @@ impl CredentialsDialog {
 
                     // Buttons
                     ui.horizontal(|ui| {
-                        if ui.button("💾 Save").clicked() && !self.private_key.is_empty() {
+                        let save_clicked = ui.button("💾 Save").clicked();
+                        eprintln!("DEBUG: Button check - clicked: {}, private_key empty: {}", 
+                                save_clicked, self.private_key.is_empty());
+                        if save_clicked && !self.private_key.is_empty() {
+                            eprintln!("DEBUG: Save button clicked with private key: {}", if self.private_key.is_empty() { "EMPTY" } else { "NOT_EMPTY" });
                             if NostrClient::validate_private_key(&self.private_key) {
+                                eprintln!("DEBUG: Private key validation passed");
                                 match NostrClient::get_public_key_from_private(&self.private_key) {
                                     Ok(public_key) => {
+                                        eprintln!("DEBUG: Public key generated successfully");
                                         let mut credentials = NostrCredentials::new(
                                             self.private_key.clone(),
                                             public_key
@@ -206,6 +212,8 @@ impl CredentialsDialog {
                                         if !self.nip05.is_empty() {
                                             credentials.nip05 = Some(self.nip05.clone());
                                         }
+
+                                        eprintln!("DEBUG: About to save credentials...");
 
                                         // Save credentials
                                         match storage.save_credentials(&credentials) {
@@ -232,6 +240,7 @@ impl CredentialsDialog {
                                     }
                                 }
                             } else {
+                                eprintln!("DEBUG: Private key validation failed");
                                 self.error_message = Some("Invalid private key format".to_string());
                             }
                         }
