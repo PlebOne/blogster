@@ -13,6 +13,79 @@ pub enum Theme {
     TokyoNight,
     OneDark,
     MaterialDark,
+    Custom,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomThemeColors {
+    pub primary: [u8; 3],
+    pub secondary: [u8; 3],
+    pub success: [u8; 3],
+    pub warning: [u8; 3],
+    pub error: [u8; 3],
+    pub info: [u8; 3],
+    pub text: [u8; 3],
+    pub text_secondary: [u8; 3],
+    pub text_muted: [u8; 3],
+    pub background: [u8; 3],
+    pub surface: [u8; 3],
+    pub border: [u8; 3],
+}
+
+impl Default for CustomThemeColors {
+    fn default() -> Self {
+        // Default to Catppuccin Mocha colors
+        Self {
+            primary: [137, 180, 250],    // Blue
+            secondary: [203, 166, 247],  // Mauve
+            success: [166, 227, 161],    // Green
+            warning: [249, 226, 175],    // Yellow
+            error: [243, 139, 168],      // Red
+            info: [137, 220, 235],       // Sky
+            text: [205, 214, 244],       // Text
+            text_secondary: [186, 194, 222], // Subtext1
+            text_muted: [166, 173, 200], // Subtext0
+            background: [30, 30, 46],    // Base
+            surface: [49, 50, 68],       // Surface0
+            border: [88, 91, 112],       // Overlay0
+        }
+    }
+}
+
+impl CustomThemeColors {
+    pub fn to_theme_colors(&self) -> ThemeColors {
+        ThemeColors {
+            primary: Color32::from_rgb(self.primary[0], self.primary[1], self.primary[2]),
+            secondary: Color32::from_rgb(self.secondary[0], self.secondary[1], self.secondary[2]),
+            success: Color32::from_rgb(self.success[0], self.success[1], self.success[2]),
+            warning: Color32::from_rgb(self.warning[0], self.warning[1], self.warning[2]),
+            error: Color32::from_rgb(self.error[0], self.error[1], self.error[2]),
+            info: Color32::from_rgb(self.info[0], self.info[1], self.info[2]),
+            text: Color32::from_rgb(self.text[0], self.text[1], self.text[2]),
+            text_secondary: Color32::from_rgb(self.text_secondary[0], self.text_secondary[1], self.text_secondary[2]),
+            text_muted: Color32::from_rgb(self.text_muted[0], self.text_muted[1], self.text_muted[2]),
+            background: Color32::from_rgb(self.background[0], self.background[1], self.background[2]),
+            surface: Color32::from_rgb(self.surface[0], self.surface[1], self.surface[2]),
+            border: Color32::from_rgb(self.border[0], self.border[1], self.border[2]),
+        }
+    }
+
+    pub fn from_theme_colors(colors: &ThemeColors) -> Self {
+        Self {
+            primary: [colors.primary.r(), colors.primary.g(), colors.primary.b()],
+            secondary: [colors.secondary.r(), colors.secondary.g(), colors.secondary.b()],
+            success: [colors.success.r(), colors.success.g(), colors.success.b()],
+            warning: [colors.warning.r(), colors.warning.g(), colors.warning.b()],
+            error: [colors.error.r(), colors.error.g(), colors.error.b()],
+            info: [colors.info.r(), colors.info.g(), colors.info.b()],
+            text: [colors.text.r(), colors.text.g(), colors.text.b()],
+            text_secondary: [colors.text_secondary.r(), colors.text_secondary.g(), colors.text_secondary.b()],
+            text_muted: [colors.text_muted.r(), colors.text_muted.g(), colors.text_muted.b()],
+            background: [colors.background.r(), colors.background.g(), colors.background.b()],
+            surface: [colors.surface.r(), colors.surface.g(), colors.surface.b()],
+            border: [colors.border.r(), colors.border.g(), colors.border.b()],
+        }
+    }
 }
 
 // Universal color scheme that works across all themes
@@ -51,10 +124,24 @@ impl Theme {
             Theme::TokyoNight => "Tokyo Night",
             Theme::OneDark => "One Dark",
             Theme::MaterialDark => "Material Dark",
+            Theme::Custom => "Custom",
         }
     }
 
-    pub fn colors(&self) -> ThemeColors {
+    pub fn colors(&self, custom_colors: Option<&CustomThemeColors>) -> ThemeColors {
+        match self {
+            Theme::Custom => {
+                if let Some(custom) = custom_colors {
+                    custom.to_theme_colors()
+                } else {
+                    CustomThemeColors::default().to_theme_colors()
+                }
+            }
+            _ => self.predefined_colors(),
+        }
+    }
+
+    fn predefined_colors(&self) -> ThemeColors {
         match self {
             Theme::CatppuccinMocha => ThemeColors {
                 primary: Color32::from_rgb(137, 180, 250),      // Blue
@@ -196,6 +283,10 @@ impl Theme {
                 surface: Color32::from_rgb(46, 60, 67),         // Surface
                 border: Color32::from_rgb(84, 110, 122),        // Border
             },
+            Theme::Custom => {
+                // This should never be called since Custom uses custom_colors
+                CustomThemeColors::default().to_theme_colors()
+            }
         }
     }
 
@@ -211,6 +302,7 @@ impl Theme {
             Theme::TokyoNight,
             Theme::OneDark,
             Theme::MaterialDark,
+            Theme::Custom,
         ]
     }
 
@@ -226,6 +318,7 @@ impl Theme {
             Theme::TokyoNight => apply_tokyo_night(ctx),
             Theme::OneDark => apply_one_dark(ctx),
             Theme::MaterialDark => apply_material_dark(ctx),
+            Theme::Custom => apply_catppuccin_mocha(ctx), // Default base for custom themes
         }
     }
 }

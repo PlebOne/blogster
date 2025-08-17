@@ -3,7 +3,7 @@ use crate::components::{CredentialsDialog, EditorAction, MarkdownEditor, Publish
 use crate::nostr_client::NostrClient;
 use crate::post::BlogPost;
 use crate::storage::Storage;
-use crate::theme::Theme;
+use crate::theme::{Theme, CustomThemeColors};
 use egui::{CentralPanel, RichText, SidePanel, TopBottomPanel};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -24,6 +24,7 @@ pub struct BlogsterApp {
     // State
     posts: Vec<BlogPost>,
     current_theme: Theme,
+    custom_colors: CustomThemeColors,
     error_message: Option<String>,
     success_message: Option<String>,
     is_loading: bool,
@@ -43,6 +44,12 @@ impl BlogsterApp {
         let current_theme = storage.load_theme().unwrap_or_else(|e| {
             tracing::warn!("Failed to load theme preference: {}", e);
             Theme::default()
+        });
+
+        // Load custom colors
+        let custom_colors = storage.load_custom_colors().unwrap_or_else(|e| {
+            tracing::warn!("Failed to load custom colors: {}", e);
+            CustomThemeColors::default()
         });
         
         // Apply theme
@@ -87,6 +94,7 @@ impl BlogsterApp {
             settings_dialog: SettingsDialog::new(),
             posts,
             current_theme,
+            custom_colors,
             error_message: None,
             success_message: None,
             is_loading: false,
@@ -110,7 +118,7 @@ impl BlogsterApp {
     }
 
     fn theme_colors(&self) -> crate::theme::ThemeColors {
-        self.current_theme.colors()
+        self.current_theme.colors(Some(&self.custom_colors))
     }
     
     fn show_top_panel(&mut self, ctx: &egui::Context) {
@@ -123,7 +131,7 @@ impl BlogsterApp {
                     // Settings menu
                     ui.menu_button("⚙️ Settings", |ui| {
                         if ui.button("🎨 Appearance").clicked() {
-                            self.settings_dialog.open(self.current_theme);
+                            self.settings_dialog.open(self.current_theme, &self.custom_colors);
                             ui.close_menu();
                         }
                         
@@ -435,8 +443,14 @@ impl eframe::App for BlogsterApp {
         
         // Handle settings dialog
         let theme_colors = self.theme_colors();
-        if let Some(new_theme) = self.settings_dialog.show(ctx, &self.storage, &theme_colors) {
+        if let Some((new_theme, custom_colors)) = self.settings_dialog.show(ctx, &self.storage, &theme_colors, &self.current_theme, &self.custom_colors) {
             self.current_theme = new_theme;
+            if let Some(colors) = custom_colors {
+                self.custom_colors = colors;
+                if let Err(e) = self.storage.save_custom_colors(&self.custom_colors) {
+                    tracing::error!("Failed to save custom colors: {}", e);
+                }
+            }
             new_theme.apply(ctx);
             self.success_message = Some(format!("Theme changed to {}!", new_theme.name()));
         }

@@ -1,6 +1,6 @@
 use crate::blossom_client::BlossomSettings;
 use crate::post::{BlogPost, NostrCredentials};
-use crate::theme::Theme;
+use crate::theme::{Theme, CustomThemeColors};
 use anyhow::{Context, Result};
 use base64::Engine;
 use std::fs;
@@ -420,5 +420,37 @@ impl Storage {
         
         tracing::info!("Loaded theme preference: {}", theme.name());
         Ok(theme)
+    }
+
+    /// Save custom theme colors
+    pub fn save_custom_colors(&self, colors: &CustomThemeColors) -> Result<()> {
+        let colors_path = self.config_dir.join("custom_colors.json");
+        let content = serde_json::to_string_pretty(colors)
+            .context("Failed to serialize custom colors")?;
+        
+        fs::write(&colors_path, content)
+            .with_context(|| format!("Failed to write custom colors to {}", colors_path.display()))?;
+        
+        tracing::info!("Saved custom theme colors");
+        Ok(())
+    }
+
+    /// Load custom theme colors
+    pub fn load_custom_colors(&self) -> Result<CustomThemeColors> {
+        let colors_path = self.config_dir.join("custom_colors.json");
+        
+        if !colors_path.exists() {
+            tracing::info!("No custom colors file found, using default");
+            return Ok(CustomThemeColors::default());
+        }
+
+        let content = fs::read_to_string(&colors_path)
+            .with_context(|| format!("Failed to read custom colors from {}", colors_path.display()))?;
+        
+        let colors: CustomThemeColors = serde_json::from_str(&content)
+            .context("Failed to parse custom colors")?;
+        
+        tracing::info!("Loaded custom theme colors");
+        Ok(colors)
     }
 }
