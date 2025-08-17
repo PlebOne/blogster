@@ -25,7 +25,7 @@ A modern desktop application for creating and publishing long-form blog posts to
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/blogster.git
+   git clone https://github.com/PlebOne/blogster.git
    cd blogster
    ```
 
