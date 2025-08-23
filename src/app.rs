@@ -1,7 +1,8 @@
 use crate::blossom_client::{BlossomClient, BlossomSettings};
-use crate::components::{CredentialsDialog, EditorAction, MarkdownEditor, PublishDialog, SettingsDialog, Sidebar, SidebarAction};
+use crate::components::{CredentialsDialog, EditorAction, MarkdownEditor, PublishDialog, RelayDialog, SettingsDialog, Sidebar, SidebarAction};
 use crate::nostr_client::NostrClient;
 use crate::post::BlogPost;
+use crate::relay_settings::RelaySettings;
 use crate::storage::Storage;
 use crate::theme::{Theme, CustomThemeColors};
 use egui::{CentralPanel, RichText, SidePanel, TopBottomPanel};
@@ -20,11 +21,13 @@ pub struct BlogsterApp {
     credentials_dialog: CredentialsDialog,
     publish_dialog: PublishDialog,
     settings_dialog: SettingsDialog,
+    relay_dialog: RelayDialog,
     
     // State
     posts: Vec<BlogPost>,
     current_theme: Theme,
     custom_colors: CustomThemeColors,
+    relay_settings: RelaySettings,
     error_message: Option<String>,
     success_message: Option<String>,
     is_loading: bool,
@@ -50,6 +53,12 @@ impl BlogsterApp {
         let custom_colors = storage.load_custom_colors().unwrap_or_else(|e| {
             tracing::warn!("Failed to load custom colors: {}", e);
             CustomThemeColors::default()
+        });
+
+        // Load relay settings
+        let relay_settings = storage.load_relay_settings().unwrap_or_else(|e| {
+            tracing::warn!("Failed to load relay settings: {}", e);
+            RelaySettings::default()
         });
         
         // Apply theme
@@ -92,9 +101,11 @@ impl BlogsterApp {
             credentials_dialog: CredentialsDialog::new(),
             publish_dialog: PublishDialog::new(),
             settings_dialog: SettingsDialog::new(),
+            relay_dialog: RelayDialog::new(),
             posts,
             current_theme,
             custom_colors,
+            relay_settings,
             error_message: None,
             success_message: None,
             is_loading: false,
@@ -142,7 +153,12 @@ impl BlogsterApp {
                             ui.close_menu();
                         }
 
-                        if ui.button("🌸 Blossom Settings").clicked() {
+                        if ui.button("� Relay Settings").clicked() {
+                            self.relay_dialog.open(&self.relay_settings);
+                            ui.close_menu();
+                        }
+
+                        if ui.button("�🌸 Blossom Settings").clicked() {
                             self.show_settings = true;
                             ui.close_menu();
                         }
@@ -455,6 +471,12 @@ impl eframe::App for BlogsterApp {
             self.success_message = Some(format!("Theme changed to {}!", new_theme.name()));
         }
         
+        // Handle relay dialog
+        if let Some(new_relay_settings) = self.relay_dialog.show(ctx, &self.storage, &theme_colors) {
+            self.relay_settings = new_relay_settings;
+            self.success_message = Some("Relay settings updated!".to_string());
+        }
+        
         // Show Blossom settings dialog
         if self.show_settings {
             egui::Window::new("🌸 Blossom Settings")
@@ -498,7 +520,7 @@ impl eframe::App for BlogsterApp {
                 });
         }
         
-        if let Some(published_post) = self.publish_dialog.show(ctx, &self.nostr_client, &self.runtime) {
+        if let Some(published_post) = self.publish_dialog.show(ctx, &self.nostr_client, &self.relay_settings, &self.runtime) {
             // Update the post in our list
             if let Some(existing_post) = self.posts.iter_mut().find(|p| p.id == published_post.id) {
                 *existing_post = published_post.clone();

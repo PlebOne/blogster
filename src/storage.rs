@@ -1,5 +1,6 @@
 use crate::blossom_client::BlossomSettings;
 use crate::post::{BlogPost, NostrCredentials};
+use crate::relay_settings::RelaySettings;
 use crate::theme::{Theme, CustomThemeColors};
 use anyhow::{Context, Result};
 use base64::Engine;
@@ -452,5 +453,37 @@ impl Storage {
         
         tracing::info!("Loaded custom theme colors");
         Ok(colors)
+    }
+
+    /// Save relay settings
+    pub fn save_relay_settings(&self, settings: &RelaySettings) -> Result<()> {
+        let settings_path = self.config_dir.join("relay_settings.json");
+        let content = serde_json::to_string_pretty(settings)
+            .context("Failed to serialize relay settings")?;
+        
+        fs::write(&settings_path, content)
+            .with_context(|| format!("Failed to write relay settings to {}", settings_path.display()))?;
+        
+        tracing::info!("Saved relay settings");
+        Ok(())
+    }
+
+    /// Load relay settings
+    pub fn load_relay_settings(&self) -> Result<RelaySettings> {
+        let settings_path = self.config_dir.join("relay_settings.json");
+        
+        if !settings_path.exists() {
+            tracing::info!("No relay settings file found, using default");
+            return Ok(RelaySettings::default());
+        }
+
+        let content = fs::read_to_string(&settings_path)
+            .with_context(|| format!("Failed to read relay settings from {}", settings_path.display()))?;
+        
+        let settings: RelaySettings = serde_json::from_str(&content)
+            .context("Failed to parse relay settings")?;
+        
+        tracing::info!("Loaded relay settings with {} custom relays", settings.custom_relays.len());
+        Ok(settings)
     }
 }

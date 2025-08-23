@@ -3,6 +3,7 @@ mod blossom_client;
 mod components;
 mod nostr_client;
 mod post;
+mod relay_settings;
 mod storage;
 mod theme;
 

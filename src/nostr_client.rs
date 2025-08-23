@@ -1,4 +1,5 @@
 use crate::post::{BlogPost, NostrCredentials};
+use crate::relay_settings::RelaySettings;
 use anyhow::{Context, Result};
 use nostr_sdk::prelude::*;
 use std::time::Duration;
@@ -44,8 +45,8 @@ impl NostrClient {
         self.credentials.is_some()
     }
 
-    pub async fn connect_to_relays(&self) -> Result<()> {
-        let relays = Self::get_long_form_relays();
+    pub async fn connect_to_relays(&self, relay_settings: &RelaySettings) -> Result<()> {
+        let relays = relay_settings.get_active_relays();
         
         for relay_url in relays {
             if let Err(e) = self.client.add_relay(&relay_url).await {
@@ -63,7 +64,7 @@ impl NostrClient {
         Ok(())
     }
 
-    pub async fn publish_long_form_post(&self, post: &BlogPost) -> Result<(EventId, Vec<String>)> {
+    pub async fn publish_long_form_post(&self, post: &BlogPost, relay_settings: &RelaySettings) -> Result<(EventId, Vec<String>)> {
         if self.credentials.is_none() {
             return Err(anyhow::anyhow!("No Nostr credentials configured"));
         }
@@ -101,6 +102,9 @@ impl NostrClient {
         // Add identifier for replaceable event (NIP-33)
         let identifier = format!("blogster-{}", post.id);
         tags.push(Tag::identifier(&identifier));
+
+        // Connect to relays before publishing
+        self.connect_to_relays(relay_settings).await?;
 
         // Create the event with kind 30023 for parameterized replaceable long-form content
         let kind = Kind::ParameterizedReplaceable(30023);
@@ -174,10 +178,10 @@ impl NostrClient {
         Ok(event_id)
     }
 
-    pub async fn get_relay_status(&self) -> Vec<(String, bool)> {
+    pub async fn get_relay_status(&self, relay_settings: &RelaySettings) -> Vec<(String, bool)> {
         let mut status = Vec::new();
         
-        for relay_url in Self::get_long_form_relays() {
+        for relay_url in relay_settings.get_active_relays() {
             // For now, just assume connected. In a real implementation,
             // you would check the actual connection status
             let is_connected = true;
@@ -185,17 +189,6 @@ impl NostrClient {
         }
         
         status
-    }
-
-    /// Get the top 5 long-form content relays for Nostr
-    pub fn get_long_form_relays() -> Vec<String> {
-        vec![
-            "wss://relay.damus.io".to_string(),
-            "wss://nos.lol".to_string(),
-            "wss://relay.nostr.band".to_string(),
-            "wss://nostr-pub.wellorder.net".to_string(),
-            "wss://relay.snort.social".to_string(),
-        ]
     }
 
     /// Generate new Nostr credentials

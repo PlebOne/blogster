@@ -1,5 +1,6 @@
 use crate::nostr_client::NostrClient;
 use crate::post::BlogPost;
+use crate::relay_settings::RelaySettings;
 use crate::theme::CatppuccinMocha;
 use egui::{RichText, Window};
 use std::sync::Arc;
@@ -42,6 +43,7 @@ impl PublishDialog {
         &mut self,
         ctx: &egui::Context,
         nostr_client: &Arc<Mutex<NostrClient>>,
+        relay_settings: &RelaySettings,
         runtime: &tokio::runtime::Runtime,
     ) -> Option<BlogPost> {
         if !self.open {
@@ -82,7 +84,7 @@ impl PublishDialog {
 
                         // Relay information
                         ui.label(RichText::new("Publishing to relays:").strong());
-                        for relay in NostrClient::get_long_form_relays() {
+                        for relay in relay_settings.get_active_relays() {
                             ui.label(format!("• {}", relay));
                         }
 
@@ -135,7 +137,7 @@ impl PublishDialog {
 
         // Handle publishing outside the UI closure
         if should_start_publishing {
-            self.start_publishing(nostr_client, runtime);
+            self.start_publishing(nostr_client, runtime, relay_settings);
         }
 
         if close_dialog {
@@ -153,6 +155,7 @@ impl PublishDialog {
         &mut self,
         nostr_client: &Arc<Mutex<NostrClient>>,
         runtime: &tokio::runtime::Runtime,
+        relay_settings: &RelaySettings,
     ) {
         if let Some(post) = self.post.take() {
             self.is_publishing = true;
@@ -160,8 +163,9 @@ impl PublishDialog {
 
             let client = nostr_client.clone();
             
-            // Clone the post for the async operation
+            // Clone the post and relay settings for the async operation
             let post_clone = post.clone();
+            let relay_settings_clone = relay_settings.clone();
             
             // Spawn the publishing task
             runtime.spawn(async move {
@@ -169,11 +173,11 @@ impl PublishDialog {
                     let client_guard = client.lock().await;
                     
                     // Connect to relays first
-                    if let Err(e) = client_guard.connect_to_relays().await {
+                    if let Err(e) = client_guard.connect_to_relays(&relay_settings_clone).await {
                         Err(format!("Failed to connect to relays: {}", e))
                     } else {
                         // Publish the post
-                        client_guard.publish_long_form_post(&post_clone).await
+                        client_guard.publish_long_form_post(&post_clone, &relay_settings_clone).await
                             .map_err(|e| e.to_string())
                     }
                 };
